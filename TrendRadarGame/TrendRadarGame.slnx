@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="TrendRadarGame/TrendRadarGame.vcxproj" Id="06980a48-2ef3-4268-a253-305e0d3ab67d" />
+</Solution>
