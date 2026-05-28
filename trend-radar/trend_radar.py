@@ -141,7 +141,7 @@ def fetch_and_summarize():
         feed = feedparser.parse(url)
         items = []
         
-        for entry in feed.entries[:3]:
+        for entry in feed.entries[:2]:
             title = entry.title
             description = clean_summary(entry.get("summary", ""))
             
@@ -182,5 +182,16 @@ def save_all(items_by_category):
 
 if __name__ == "__main__":
     items, total = fetch_and_summarize()
-    save_all(items)
-    print(f"\n🎉 완료! 총 {total}개 기사 요약")
+    
+    # 안전장치: 요약이 하나도 없으면 저장 안 함
+    summary_count = sum(
+        1 for cat_items in items.values() 
+        for item in cat_items 
+        if item["ai_summary"]
+    )
+    if summary_count == 0:
+        print("\n⚠️ AI 요약이 전부 실패했습니다. 파일 저장을 건너뜁니다.")
+        print("   (기존 파일을 덮어쓰지 않았습니다.)")
+    else:
+        save_all(items)
+        print(f"\n🎉 완료! 총 {total}개 중 {summary_count}개 요약 성공")
