@@ -5,19 +5,18 @@ import re
 import os
 import time
 from dotenv import load_dotenv
-import google.generativeai as genai
-
+from groq import Groq
 
 # === 환경 변수 로딩 ===
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-if not GEMINI_API_KEY:
-    print("⚠️ GEMINI_API_KEY가 .env 파일에 없습니다.")
+if not GROQ_API_KEY:
+    print("⚠️ GROQ_API_KEY가 .env 파일에 없습니다.")
     exit()
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash-lite")
+client = Groq(api_key=GROQ_API_KEY)
+MODEL = "llama-3.3-70b-versatile"
 
 
 # === RSS 피드 목록 ===
@@ -45,7 +44,7 @@ def clean_summary(raw):
 
 
 def ai_summarize(title, description):
-    """Gemini AI로 한국어 한 줄 요약 생성"""
+    """Groq AI로 한국어 한 줄 요약 생성"""
     if not description:
         content = title
     else:
@@ -58,9 +57,13 @@ def ai_summarize(title, description):
 {content}"""
     
     try:
-        response = model.generate_content(prompt)
-        summary = response.text.strip()
-        # 따옴표 제거 (AI가 가끔 붙임)
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=100,
+        )
+        summary = response.choices[0].message.content.strip()
         summary = summary.strip('"').strip("'").strip("「").strip("」")
         return summary
     except Exception as e:
@@ -141,7 +144,7 @@ def fetch_and_summarize():
         feed = feedparser.parse(url)
         items = []
         
-        for entry in feed.entries[:2]:
+        for entry in feed.entries[:3]:
             title = entry.title
             description = clean_summary(entry.get("summary", ""))
             
@@ -158,7 +161,7 @@ def fetch_and_summarize():
             total += 1
             
             # API 호출 간격 (분당 15회 제한 회피)
-            time.sleep(13)
+            time.sleep(1)
         
         items_by_category[category] = items
     
