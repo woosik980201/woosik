@@ -1,4 +1,4 @@
-# trend_radar.py — v0.1.0: 큐레이션형 요약 (본문 수집 + 핵심/왜주목 + 외국어 차단)
+# trend_radar.py — v0.2.0: 큐레이션 요약 + SQLite 아카이빙 (매일 DB에 누적)
 import feedparser
 import requests
 from bs4 import BeautifulSoup
@@ -6,6 +6,7 @@ from datetime import datetime
 import re
 import os
 import time
+import sqlite3
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -225,6 +226,50 @@ def fetch_and_summarize():
     return items_by_category, total
 
 
+# === SQLite 아카이빙 ===
+# 매일 새로 만드는 html/md는 '그날의 스냅샷'이라 검색·누적이 안 된다.
+# 그래서 모든 기사를 DB 한 곳에 쌓고, link를 UNIQUE로 잡아 중복은 자동으로 건너뛴다.
+DB_PATH = "trends.db"
+
+
+def init_db():
+    """DB와 테이블이 없으면 만든다. (있으면 그대로 둔다)"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS trends (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            collected_date TEXT NOT NULL,
+            category       TEXT NOT NULL,
+            title          TEXT NOT NULL,
+            link           TEXT NOT NULL UNIQUE,
+            ai_summary     TEXT,
+            created_at     TEXT DEFAULT (datetime('now', 'localtime'))
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def save_to_db(items_by_category):
+    """오늘 수집한 기사를 DB에 누적한다. link가 이미 있으면 건너뛴다."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    conn = sqlite3.connect(DB_PATH)
+    new_count = 0
+    for category, items in items_by_category.items():
+        for item in items:
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO trends "
+                "(collected_date, category, title, link, ai_summary) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (today, category, item["title"], item["link"], item["ai_summary"]),
+            )
+            if cur.rowcount > 0:
+                new_count += 1
+    conn.commit()
+    conn.close()
+    return new_count
+
+
 def save_all(items_by_category):
     today_str = datetime.now().strftime('%Y%m%d')
     
@@ -254,4 +299,7 @@ if __name__ == "__main__":
         print("   (기존 파일을 덮어쓰지 않았습니다.)")
     else:
         save_all(items)
+        init_db()
+        new_count = save_to_db(items)
+        print(f"🗄️ DB 누적: 새 기사 {new_count}개 추가 (중복 제외)")
         print(f"\n🎉 완료! 총 {total}개 중 {summary_count}개 요약 성공")

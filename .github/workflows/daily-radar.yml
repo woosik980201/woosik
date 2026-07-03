@@ -34,6 +34,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add trend-radar/trends_*.html trend-radar/trends_*.md
+          git add trend-radar/trends_*.html trend-radar/trends_*.md trend-radar/trends.db
           git diff --staged --quiet || git commit -m "🌱 Daily trends $(date +'%Y-%m-%d')"
           git push
