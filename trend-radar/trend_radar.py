@@ -1,5 +1,7 @@
-# trend_radar.py — v0.0.5: Gemini AI 한국어 요약 추가
+# trend_radar.py — v0.1.0: 큐레이션형 요약 (본문 수집 + 핵심/왜주목 + 외국어 차단)
 import feedparser
+import requests
+from bs4 import BeautifulSoup
 from datetime import datetime
 import re
 import os
@@ -43,29 +45,70 @@ def clean_summary(raw):
     return text
 
 
-def ai_summarize(title, description):
-    """Groq AI로 한국어 한 줄 요약 생성"""
-    if not description:
-        content = title
-    else:
-        content = f"제목: {title}\n내용: {description}"
-    
-    prompt = f"""다음 기사를 한국어로 한 문장(50자 이내)으로 요약해줘.
-요약만 출력하고, 다른 말은 절대 붙이지 마.
-어조는 차분하고 정보 전달 중심으로.
+# 한자 / 일본어(가나) / 태국어 문자 탐지 — 한글·이모지는 허용
+BANNED_SCRIPTS = re.compile(r"[一-鿿぀-ゟ゠-ヿ฀-๿]")
 
-{content}"""
-    
+CURATOR_PROMPT = (
+    "너는 패션·음악·테크 트렌드를 골라 소개하는 매거진 에디터야. "
+    "아래 기사를 한국어로 정리해줘.\n\n"
+    "[반드시 지킬 규칙]\n"
+    "- 한국어로만 써. 한자·일본어·태국어 등 다른 언어 문자를 절대 섞지 마 "
+    "(예: '愛好家' 금지 -> '애호가').\n"
+    "- 제목을 그대로 번역·반복하지 마.\n"
+    "- 감각적이되 과장하지 마. 트렌드 매거진 톤.\n"
+    "- 문장은 반드시 '~다'로 끝내라. '~하세요', '~써보세요', '~시대입니다' 같은 "
+    "권유·광고 문구는 금지.\n"
+    "- 이모지는 한 줄에 최대 1개, 포인트로만.\n\n"
+    "[두 줄의 역할을 분명히 나눠라 — 같은 말을 반복하면 실패다]\n"
+    "핵심: 무슨 일인지 '구체적 사실'로. 고유명사·디테일·숫자를 반드시 살려라. "
+    "추상적 감상('~감성을 담았다')은 금지. (90자 이내)\n"
+    "왜 주목: 핵심에 쓴 단어를 반복하지 말고, 그 사실 '너머의 더 큰 흐름·맥락·의미'만 "
+    "짚어라. (90자 이내)\n\n"
+    "[출력은 이 두 줄만]\n"
+    "핵심: ...\n"
+    "왜 주목: ...\n\n"
+    "제목: {title}\n본문: {source}"
+)
+
+
+def fetch_body(url, limit=2000):
+    """기사 본문을 실제로 가져온다 (RSS 요약 대신 재료를 풍부하게)."""
     try:
+        html = requests.get(
+            url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}
+        ).text
+        soup = BeautifulSoup(html, "html.parser")
+        paras = [p.get_text(" ", strip=True) for p in soup.find_all("p")]
+        return " ".join(paras)[:limit]
+    except Exception as e:
+        print(f"   (본문 수집 실패: {e})")
+        return ""
+
+
+def ai_summarize(title, link, description):
+    """본문을 가져와 '핵심 / 왜 주목' 2줄 큐레이션을 생성한다."""
+    body = fetch_body(link)
+    source = body if len(body) > 200 else description  # 본문 실패 시 RSS 폴백
+    prompt = CURATOR_PROMPT.format(title=title, source=source)
+
+    def generate(extra=""):
         response = client.chat.completions.create(
             model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=100,
+            messages=[{"role": "user", "content": prompt + extra}],
+            temperature=0.5,
+            max_tokens=300,
         )
-        summary = response.choices[0].message.content.strip()
-        summary = summary.strip('"').strip("'").strip("「").strip("」")
-        return summary
+        return response.choices[0].message.content.strip()
+
+    try:
+        out = generate()
+        # 안전장치: 외국어 문자가 새면 한 번 더 강하게 재생성
+        if BANNED_SCRIPTS.search(out):
+            print("   (외국어 문자 감지 -> 재생성)")
+            out = generate(
+                "\n\n[경고] 방금 외국어 문자가 섞였어. 한국어와 이모지만 써서 다시 써."
+            )
+        return out
     except Exception as e:
         print(f"   ⚠️ 요약 실패: {e}")
         return ""
@@ -87,9 +130,10 @@ def build_html(items_by_category):
   .item {{ margin: 12px 0; padding: 14px; background: #f7f7f5; border-radius: 8px; }}
   .item a {{ color: #222; text-decoration: none; font-weight: 500; display: block; margin-bottom: 6px; }}
   .item a:hover {{ text-decoration: underline; }}
-  .ai-summary {{ font-size: 14px; color: #444; line-height: 1.5; 
+  .ai-summary {{ font-size: 14px; color: #444; line-height: 1.6;
                  padding: 8px 0 0; border-top: 1px dashed #ddd; margin-top: 8px; }}
-  .ai-summary::before {{ content: "🤖 "; }}
+  .ai-summary .s-line {{ margin: 3px 0; }}
+  .ai-summary strong {{ color: #222; margin-right: 5px; }}
   .original {{ font-size: 12px; color: #999; line-height: 1.4; margin-top: 6px; }}
   .footer {{ margin-top: 40px; font-size: 12px; color: #999; text-align: center; }}
 </style>
@@ -104,11 +148,21 @@ def build_html(items_by_category):
             html += f'<div class="item">'
             html += f'<a href="{item["link"]}" target="_blank">{item["title"]}</a>'
             if item["ai_summary"]:
-                html += f'<div class="ai-summary">{item["ai_summary"]}</div>'
+                html += '<div class="ai-summary">'
+                for line in item["ai_summary"].split("\n"):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if ":" in line:
+                        label, _, rest = line.partition(":")
+                        html += f'<div class="s-line"><strong>{label}</strong>{rest.strip()}</div>'
+                    else:
+                        html += f'<div class="s-line">{line}</div>'
+                html += '</div>'
             html += f'</div>\n'
     
     html += """
-<div class="footer">trend-radar v0.0.5 · made by ssik · powered by Gemini AI</div>
+<div class="footer">trend-radar v0.1.0 · made by ssik · powered by Groq</div>
 </body>
 </html>"""
     return html
@@ -125,10 +179,13 @@ def build_markdown(items_by_category):
         for item in items:
             md += f"- **[{item['title']}]({item['link']})**\n"
             if item["ai_summary"]:
-                md += f"  > 🤖 {item['ai_summary']}\n"
+                for line in item["ai_summary"].split("\n"):
+                    line = line.strip()
+                    if line:
+                        md += f"  > {line}\n"
             md += "\n"
-    
-    md += "\n---\n*trend-radar v0.0.5 · made by ssik · powered by Gemini AI*\n"
+
+    md += "\n---\n*trend-radar v0.1.0 · made by ssik · powered by Groq*\n"
     return md
 
 
@@ -149,7 +206,7 @@ def fetch_and_summarize():
             description = clean_summary(entry.get("summary", ""))
             
             print(f"  · {title[:40]}...")
-            ai_summary = ai_summarize(title, description)
+            ai_summary = ai_summarize(title, entry.link, description)
             if ai_summary:
                 print(f"    🤖 {ai_summary}")
             

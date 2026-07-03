@@ -6,3 +6,8 @@ x64/
 Debug/
 *.exe
 
+# Python 가상환경
+venv/
+.venv/
+env/
+
