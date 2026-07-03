@@ -7,6 +7,7 @@ import re
 import os
 import time
 import sqlite3
+from urllib.parse import urlsplit, urlunsplit
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -228,12 +229,29 @@ def fetch_and_summarize():
 
 # === SQLite 아카이빙 ===
 # 매일 새로 만드는 html/md는 '그날의 스냅샷'이라 검색·누적이 안 된다.
-# 그래서 모든 기사를 DB 한 곳에 쌓고, link를 UNIQUE로 잡아 중복은 자동으로 건너뛴다.
+# 그래서 모든 기사를 DB 한 곳에 쌓는다.
+# 중복 판정의 핵심: 'URL 완전 일치'는 너무 빡빡해서, 같은 기사인데 ?utm=… 같은
+# 추적 파라미터·끝 슬래시·http/https·www 차이만 있어도 다른 기사로 새어든다.
+# 그래서 link를 '정규화(normalize)'한 link_key를 진짜 중복 기준으로 삼는다.
 DB_PATH = "trends.db"
 
 
+def normalize_link(url):
+    """URL에서 본질만 남긴다: scheme·www·쿼리·프래그먼트·끝 슬래시 제거."""
+    try:
+        p = urlsplit((url or "").strip())
+        netloc = p.netloc.lower()
+        if netloc.startswith("www."):
+            netloc = netloc[4:]
+        path = p.path.rstrip("/")
+        key = urlunsplit(("", netloc, path, "", ""))  # scheme·query·fragment 버림
+        return key or (url or "").strip().lower()
+    except Exception:
+        return (url or "").strip().lower()
+
+
 def init_db():
-    """DB와 테이블이 없으면 만든다. (있으면 그대로 둔다)"""
+    """DB·테이블을 만들고, 구버전 DB면 link_key 컬럼으로 마이그레이션한다."""
     conn = sqlite3.connect(DB_PATH)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS trends (
@@ -241,17 +259,41 @@ def init_db():
             collected_date TEXT NOT NULL,
             category       TEXT NOT NULL,
             title          TEXT NOT NULL,
-            link           TEXT NOT NULL UNIQUE,
+            link           TEXT NOT NULL,
+            link_key       TEXT,
             ai_summary     TEXT,
             created_at     TEXT DEFAULT (datetime('now', 'localtime'))
         )
     """)
+
+    # --- 구버전 DB 마이그레이션: link_key 컬럼이 없으면 추가·채우고 중복 청소 ---
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(trends)")]
+    if "link_key" not in cols:
+        conn.execute("ALTER TABLE trends ADD COLUMN link_key TEXT")
+    # link_key가 비어 있는 행 채우기 (신규·구버전 모두 안전)
+    for row_id, link in conn.execute(
+        "SELECT id, link FROM trends WHERE link_key IS NULL OR link_key = ''"
+    ).fetchall():
+        conn.execute(
+            "UPDATE trends SET link_key = ? WHERE id = ?",
+            (normalize_link(link), row_id),
+        )
+    # 같은 link_key가 여러 개면 가장 먼저 들어온 것(min id)만 남기고 삭제
+    conn.execute("""
+        DELETE FROM trends WHERE id NOT IN (
+            SELECT MIN(id) FROM trends GROUP BY link_key
+        )
+    """)
+    # 이제부터 link_key는 유일해야 한다 (INSERT OR IGNORE가 이 인덱스로 걸러줌)
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_trends_link_key ON trends(link_key)"
+    )
     conn.commit()
     conn.close()
 
 
 def save_to_db(items_by_category):
-    """오늘 수집한 기사를 DB에 누적한다. link가 이미 있으면 건너뛴다."""
+    """오늘 수집한 기사를 DB에 누적한다. 정규화 링크(link_key)가 같으면 건너뛴다."""
     today = datetime.now().strftime("%Y-%m-%d")
     conn = sqlite3.connect(DB_PATH)
     new_count = 0
@@ -259,9 +301,12 @@ def save_to_db(items_by_category):
         for item in items:
             cur = conn.execute(
                 "INSERT OR IGNORE INTO trends "
-                "(collected_date, category, title, link, ai_summary) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (today, category, item["title"], item["link"], item["ai_summary"]),
+                "(collected_date, category, title, link, link_key, ai_summary) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    today, category, item["title"], item["link"],
+                    normalize_link(item["link"]), item["ai_summary"],
+                ),
             )
             if cur.rowcount > 0:
                 new_count += 1
