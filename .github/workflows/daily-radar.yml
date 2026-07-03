@@ -22,18 +22,51 @@ jobs:
         working-directory: trend-radar
         run: |
           python -m pip install --upgrade pip
-          pip install feedparser python-dotenv groq
+          pip install -r requirements.txt
       
       - name: Run trend-radar
         working-directory: trend-radar
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python trend_radar.py
-      
+
+      - name: Build archive page
+        working-directory: trend-radar
+        run: |
+          if [ -f trends.db ]; then python build_archive.py; else echo "DB 없음 — 아카이브 생략"; fi
+
       - name: Commit results
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add trend-radar/trends_*.html trend-radar/trends_*.md
+          git add trend-radar/trends_*.html trend-radar/trends_*.md trend-radar/trends.db trend-radar/index.html
           git diff --staged --quiet || git commit -m "🌱 Daily trends $(date +'%Y-%m-%d')"
           git push
+
+  deploy-pages:
+    needs: run-radar
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare site (index.html만 배포)
+        run: |
+          mkdir -p _site
+          cp trend-radar/index.html _site/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
