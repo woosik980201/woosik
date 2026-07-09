@@ -1,4 +1,5 @@
 # trend_radar.py — v0.2.0: 큐레이션 요약 + SQLite 아카이빙 (매일 DB에 누적)
+import sys
 import feedparser
 import requests
 from bs4 import BeautifulSoup
@@ -10,6 +11,11 @@ import sqlite3
 from urllib.parse import urlsplit, urlunsplit
 from dotenv import load_dotenv
 from groq import Groq
+
+# Windows 로컬 콘솔(cp949)이 모델 응답에 섞인 외국어 문자를 못 그려서
+# UnicodeEncodeError로 죽는 것을 방지 (GitHub Actions는 이미 UTF-8이라 영향 없음)
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # === 환경 변수 로딩 ===
 load_dotenv()

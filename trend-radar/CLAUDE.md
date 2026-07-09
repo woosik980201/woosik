@@ -53,7 +53,7 @@ trend-radar는 패션·컬처·기술 RSS 피드를 수집해 AI로 큐레이션
 - API 키 노출 사고 이력 있음. .env + .gitignore 반드시 유지, 키를 로그·커밋에 남기지 말 것
 - 결과물을 레포에 커밋하는 워크플로는 permissions: contents: write 필요
 - Gemini로 회귀 금지 (rate limit 때문에 Groq로 옮긴 것)
-- BANNED_SCRIPTS는 한자·가나·태국어만 감지하고 베트남어는 못 잡음. 모델이 베트남어를 섞으면 UnicodeEncodeError로 실행이 죽을 수 있음 (Actions도 동일). 프롬프트에서 한국어 강제 + 필요시 BANNED_SCRIPTS 정규식 확장으로 대응.
+- BANNED_SCRIPTS는 한자·가나·태국어만 감지하고 베트남어는 못 잡음. Windows 로컬 콘솔(cp949)이 유니코드를 다 표현 못 해 로컬 실행 시 UnicodeEncodeError로 죽을 수 있음. GitHub Actions(Linux, UTF-8)에서는 발생 안 함. 대응: trend_radar.py 상단에서 stdout/stderr를 UTF-8로 reconfigure (적용 완료). 프롬프트에서도 한국어 강제 중.
 
 ## 6. 하지 말 것 (수정 금지)
 
