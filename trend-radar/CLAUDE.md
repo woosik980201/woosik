@@ -53,6 +53,7 @@ trend-radar는 패션·컬처·기술 RSS 피드를 수집해 AI로 큐레이션
 - API 키 노출 사고 이력 있음. .env + .gitignore 반드시 유지, 키를 로그·커밋에 남기지 말 것
 - 결과물을 레포에 커밋하는 워크플로는 permissions: contents: write 필요
 - Gemini로 회귀 금지 (rate limit 때문에 Groq로 옮긴 것)
+- BANNED_SCRIPTS는 한자·가나·태국어만 감지하고 베트남어는 못 잡음. 모델이 베트남어를 섞으면 UnicodeEncodeError로 실행이 죽을 수 있음 (Actions도 동일). 프롬프트에서 한국어 강제 + 필요시 BANNED_SCRIPTS 정규식 확장으로 대응.
 
 ## 6. 하지 말 것 (수정 금지)
 
