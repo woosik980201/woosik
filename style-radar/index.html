@@ -13,33 +13,41 @@
 </head>
 <body>
     <p id="quote">버튼을 눌러 오늘의 스타일을 확인하세요</p>
-    <button id="style-btn">오늘의 스타일1</button>
-     <button id="style-btn2">오늘의 스타일2</button>
-     <button id="style-btn3">오늘의 스타일3</button>
-
-    <script>
-     //1단계: 바꿀 대상을 찾는다
+    <button id="style-btn">오늘의 스타일</button>
+    
+     <script>
      const quote = document.querySelector("#quote");
-     const btn1 = document.querySelector("#style-btn");
-     const btn2 = document.querySelector("#style-btn2");
-     const btn3 = document.querySelector("#style-btn3");
-     //동작을 한 곳에 모으고, 이름을 붙인다
-     function changeStyle(text, color, fontSize = "24px") {
+     const btn = document.querySelector("#style-btn");
+   
+     //데이터: 한 곳에 모아둔다
+     const styles = [
+        "오늘은 미니멀룩으로 가볍게.", 
+        "오늘은 스트릿룩으로 힙하게.",
+        "오늘은 빈티지룩으로 무드있게.",
+        "오늘은 오피스룩으로 깔끔하게.",
+        "오늘은 캐주얼룩으로 편하게.",
+        "오늘은 페미닌룩으로 사랑스럽게.",
+        ];
+    const colors = [
+        "red", 
+        "blue", 
+        "green", 
+        "orange", 
+        "purple", 
+        "pink"
+    ];
+    
+        //Day 2의 함수 
+     function changeStyle(text, color) {
         quote.textContent = text;
         quote.style.color = color;
-        quote.style.fontSize = fontSize;
-     }
+       };
 
-     //이제 버튼은 "무엇을 보여줄지"만 정하면 된다
-     btn1.addEventListener("click", function(){
-        changeStyle("오늘은 미니멀룩으로 가볍게.", "black");
-     });
-     btn2.addEventListener("click", function(){
-        changeStyle("오늘은 스트릿룩으로 힙하게.", "tomato");
-     });
-     btn3.addEventListener("click", function(){
-        changeStyle("오늘은 빈티지룩으로 무드있게.", "purple", "32px");
-     });
+     btn.addEventListener("click", function(){
+        const randomIndex = Math.floor(Math.random() * styles.length);
+        changeStyle(styles[randomIndex], colors[randomIndex]);
+        });
+  
     </script>
 </body>
 </html>
