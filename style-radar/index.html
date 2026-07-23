@@ -6,48 +6,46 @@
     <title>Style Radar</title>
     <style>
         body {
-            font-family: sans-serif; text-align: center; margin: top 100px;}
+            font-family: sans-serif; text-align: center; margin-top: 100px;}
             #quote{ font-size: 24px; margin-bottom: 20px; }
             button{padding: 10px 24px; font-size: 16px; cursor: pointer;}
     </style>
 </head>
 <body>
     <p id="quote">버튼을 눌러 오늘의 스타일을 확인하세요</p>
+    <p id="music"></p>
     <button id="style-btn">오늘의 스타일</button>
+    
+   
     
      <script>
      const quote = document.querySelector("#quote");
-     const btn = document.querySelector("#style-btn");
-   
-     //데이터: 한 곳에 모아둔다
+     const styleBtn = document.querySelector("#style-btn");
      const styles = [
-        "오늘은 미니멀룩으로 가볍게.", 
-        "오늘은 스트릿룩으로 힙하게.",
-        "오늘은 빈티지룩으로 무드있게.",
-        "오늘은 오피스룩으로 깔끔하게.",
-        "오늘은 캐주얼룩으로 편하게.",
-        "오늘은 페미닌룩으로 사랑스럽게.",
-        ];
-    const colors = [
-        "red", 
-        "blue", 
-        "green", 
-        "orange", 
-        "purple", 
-        "pink"
-    ];
-    
-        //Day 2의 함수 
-     function changeStyle(text, color) {
-        quote.textContent = text;
-        quote.style.color = color;
-       };
+  { text: "오늘은 미니멀룩으로 가볍게.", color: "red", music: "classic" },
+  { text: "오늘은 스트릿룩으로 힙하게.", color: "blue", music: "hip-hop" },
+  { text: "오늘은 빈티지룩으로 무드있게.", color: "green", music: "rock" },
+  { text: "오늘은 오피스룩으로 깔끔하게.", color: "orange", music: "house" },
+  { text: "오늘은 캐주얼룩으로 편하게.", color: "purple", music: "pop" },
+  { text: "오늘은 페미닌룩으로 사랑스럽게.", color: "pink", music: "dance"}
+];
+const musicBox = document.querySelector("#music");   // 화면 요소
 
-     btn.addEventListener("click", function(){
-        const randomIndex = Math.floor(Math.random() * styles.length);
-        changeStyle(styles[randomIndex], colors[randomIndex]);
-        });
-  
+function changeStyle(text, color, music) {
+   quote.textContent = text;
+   quote.style.color = color;
+   musicBox.textContent = `추천 음악: ${music}`;
+   musicBox.style.color = color;
+}
+    
+
+     styleBtn.addEventListener("click", function () {
+  const randomIndex = Math.floor(Math.random() * styles.length);
+  const style = styles[randomIndex];
+  changeStyle(style.text, style.color, style.music);
+});
+
+
     </script>
 </body>
 </html>
