@@ -9,6 +9,7 @@
 |---|---|---|
 | [projects/ai-platform](projects/ai-platform/) | AI 플랫폼 수업 개인 과제 모음: 편집샵 상품 등록 도우미 · AI 토론장 · 상품 태그 정리 도우미 | 개인 · 수업 (2026.09~11) |
 | [projects/fly-swarm](projects/fly-swarm/) | 초파리 군집 유도 시뮬레이션 — 내가 맡은 A파트 기록 | 팀 · AI 플랫폼 기말 (2026.11) |
+| [projects/population-forecast](projects/population-forecast/) | 격자 인구 5개월 예측과 데이터 드리프트 분석 (데이터 비공개) | 개인 · 인공지능학습데이터전처리 기말 (2026.11) |
 
 ## 그 밖의 폴더
 
