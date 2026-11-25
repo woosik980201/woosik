@@ -140,5 +140,5 @@ Claude로 코드 초안, 원격 빌드와 측정 실행, 문서와 자막 정리
 ## 더 보기
 
 - [summary-1page.pdf](summary-1page.pdf) — 한 장 요약 (지원서 첨부용)
-- [devlog.md](devlog.md) — 날짜별 작업 기록 (11/05 ~ 11/24)
+- [devlog.md](devlog.md) — 날짜별 작업 기록 (11/05 ~ 11/25)
 - [case-studies.md](case-studies.md) — 문제 해결 사례 11개
